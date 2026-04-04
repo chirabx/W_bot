@@ -1,0 +1,23 @@
+<launch>
+    <!-- 定义carry_robot节点 -->
+    <node name="carry_robot_task_node" pkg="carry" type="carry_robot_task_node" output="screen">
+        <!-- 定义抓取目标桌面的x坐标 -->
+        <!--<param name="grab_desk_x" value="2.05"/> -->
+        <!-- 定义抓取目标桌面的y坐标 -->
+        <!--<param name="grab_desk_y" value="0.18"/> -->
+
+        <param name="tag1_put_x" value="2.00"/>
+        <!-- 定义放置tag1的y坐标 x=1.85 y=2.25-->
+        <param name="tag1_put_y" value="2.25"/>
+
+        <!-- 定义放置tag2的x坐标 0.80-->
+        <param name="tag2_put_x" value="0.90"/>
+        <!-- 定义放置tag2的y坐标 y=2.25-->
+        <param name="tag2_put_y" value="2.25"/>
+
+        <!-- 定义左侧放置偏移量 -->
+        <param name="offset_left" value="0.01"/>
+        <!-- 定义右侧放置偏移量 -->
+        <param name="offset_right" value="0.10"/>
+    </node>
+</launch>

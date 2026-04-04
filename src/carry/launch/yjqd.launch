@@ -1,0 +1,9 @@
+<launch>
+    <include file="$(find carry)/launch/bringup.launch" />
+
+    <include file="$(find carry)/launch/view.launch" />
+
+    <include file="$(find carry)/launch/arm_reset.launch" />
+
+    <include file="$(find carry)/launch/carry_robot.launch" />
+</launch>

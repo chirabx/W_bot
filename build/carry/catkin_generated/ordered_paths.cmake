@@ -1,0 +1,1 @@
+set(ORDERED_PATHS "/home/bcsh/mini2_ws/devel/lib;/opt/ros/melodic/lib")

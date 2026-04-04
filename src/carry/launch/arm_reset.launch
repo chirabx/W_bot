@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="carry" type="arm_reset_node" name="arm_reset_node" output="screen">
+    </node>
+  </launch>
