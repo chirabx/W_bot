@@ -93,7 +93,6 @@ int main(int argc, char** argv)
     MoveBaseClient ac("move_base", true);
     ac.waitForServer();
 
-
     double grab_desk_x = 0.0;    //桌子x坐标
     double grab_desk_y = 0.0;    //桌子y坐标
 
@@ -121,7 +120,7 @@ int main(int argc, char** argv)
     Move_safe(pub, 0.0, 0.3, 25);
     Move_safe(pub, 0.3, 0.0, 60); 
     //导航至桌子左侧前
-    Move2goal(ac, 2.12,0.13,0);
+    Move2goal(ac, 2.12,0.13,-0.04);//jioa du=0
     system("roslaunch carry print_id.launch");
 
 

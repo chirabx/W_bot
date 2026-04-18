@@ -13,6 +13,26 @@ bool tag_2_detected = false;   // 标志变量，表示是否检测到过 ID 为
 bool try_again = true;
 int tag_id = 0;
 
+void Move_safe(ros::Publisher& pub, double linear_x, double linear_y, double distance)
+{
+        geometry_msgs::Twist vel_msg;
+        vel_msg.linear.x = linear_x;
+        vel_msg.linear.y = linear_y;
+        int count = 0;
+        ros::Rate loop_rate(10);
+        while (ros::ok() && count < distance)
+        {
+            pub.publish(vel_msg);
+            // ros::spinOnce();
+            loop_rate.sleep();
+            count++;
+        }
+        // 停下
+        vel_msg.linear.x = 0.0;
+        vel_msg.linear.y = 0.0;
+        pub.publish(vel_msg);
+}
+
 void Turn_safe(ros::Publisher& pub, double angular_z, double distance)
 {
     geometry_msgs::Twist vel_msg;
@@ -44,31 +64,13 @@ void callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr& msg)
         if (!has_detected_tag)
         {
             // 如果之前没有检测到过 AprilTag，让车辆后退
-            geometry_msgs::Twist vel_msg;
-            vel_msg.linear.x = -0.06;
-            int count = 0;
-            ros::Rate loop_rate(10);
-            while (ros::ok() && count < 3)
-            {
-                pub.publish(vel_msg);
-                ros::spinOnce();
-                loop_rate.sleep();
-                count++;
-            }
-            // 停下
-            vel_msg.linear.x = 0.0;
-            pub.publish(vel_msg);
+            Move_safe(pub, -0.06, 0, 3);
         }
     }
     else
     {
         // 检测到 AprilTag
         has_detected_tag = true; // 设置标志变量为 true
-
-        // 停止车辆
-        geometry_msgs::Twist vel_msg;
-        vel_msg.linear.x = 0.0;
-        pub.publish(vel_msg);
 
         // 遍历检测到的 AprilTag
         for (const auto& detection : msg->detections)
@@ -95,81 +97,6 @@ void callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr& msg)
             // 输出欧拉角
             ROS_INFO("Orientation: Roll = %f, Pitch = %f, Yaw = %f", roll*a, pitch*a, yaw*a);
 
-            double b=pitch*a;
-            double c=roll*a;
-
-            if (b>60||b<-60||(c>80&&c<130)||(c<-80&&c>-130))
-            {
-                geometry_msgs::Twist vel_msg;
-                vel_msg.linear.y = -0.04;
-                int count = 0;
-                ros::Rate loop_rate(10);
-                while (ros::ok() && count < 4)
-                {
-                    pub.publish(vel_msg);
-                    ros::spinOnce();
-                    loop_rate.sleep();
-                    count++;
-                }
-                // 停下
-                vel_msg.linear.y = 0.0;
-                pub.publish(vel_msg);
-                ROS_INFO("识别为侧面，已右移");
-                vel_msg.linear.x = -0.04;
-                count = 0;
-                
-                while (ros::ok() && count < 8)
-                {
-                    pub.publish(vel_msg);
-                    ros::spinOnce();
-                    loop_rate.sleep();
-                    count++;
-                }
-                // 停下
-                vel_msg.linear.x = 0.0;
-                pub.publish(vel_msg);
-                ROS_INFO("已后退");
-            }
-            // if (b<-60)
-            // {
-            //     geometry_msgs::Twist vel_msg;
-            //     vel_msg.linear.y = 0.06;
-            //     int count = 0;
-            //     ros::Rate loop_rate(10);
-            //     while (ros::ok() && count < 4)
-            //     {
-            //         pub.publish(vel_msg);
-            //         ros::spinOnce();
-            //         loop_rate.sleep();
-            //         count++;
-            //     }
-            //     // 停下
-            //     vel_msg.linear.y = 0.0;
-            //     pub.publish(vel_msg);
-            //     ROS_INFO("识别为侧面,已zuo移");
-            //     vel_msg.linear.x = -0.06;
-            //     count = 0;
-                
-            //     while (ros::ok() && count < 4)
-            //     {
-            //         pub.publish(vel_msg);
-            //         ros::spinOnce();
-            //         loop_rate.sleep();
-            //         count++;
-            //     }
-            //     // 停下
-            //     vel_msg.linear.x = 0.0;
-            //     pub.publish(vel_msg);
-            //     ROS_INFO("已后退");
-            // }
-
-            // std_msgs::Int32 tag_Orientation_msg;
-            // tag_Orientation_msg.data = int(pitch*a);
-            // tag_Orientation_pub.publish(tag_Orientation_msg);
-            // tag_Orientation_pub.publish(tag_Orientation_msg);
-            // tag_Orientation_pub.publish(tag_Orientation_msg);
-
-
             //倾斜角调节
             if (roll <=-50 && roll>=-130) 
             {
@@ -182,14 +109,12 @@ void callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr& msg)
             else //倾斜角正常
             {
             // 发布 tag_id
-            std_msgs::Int32 tag_id_msg;
-            tag_id_msg.data = tag_id;
-
-            for (int i = 1; i <= 10; ++i) 
-            {
+                std_msgs::Int32 tag_id_msg;
+                tag_id_msg.data = tag_id;
+                tag_id_pub.publish(tag_id_msg);
+                tag_id_pub.publish(tag_id_msg);
                 tag_id_pub.publish(tag_id_msg);
             }
-            
 
 
 
@@ -209,7 +134,7 @@ void callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr& msg)
         }
     }
 }
-}
+
 
 int main(int argc, char **argv)
 {
