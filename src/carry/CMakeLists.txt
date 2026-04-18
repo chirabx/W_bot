@@ -19,6 +19,9 @@ find_package(catkin REQUIRED COMPONENTS
   tf_conversions
   nav_msgs
   apriltags2_ros
+  upros_message ##gly
+  std_srvs
+  tf2_geometry_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -156,8 +159,6 @@ target_link_libraries(control_center ${catkin_LIBRARIES} SerialPort Mini2Arm)
 add_dependencies(control_center ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 
-
-add_executable(arm_grab_node src/arm_grab.cpp)
 add_executable(carry_robot_task_node src/carry_robot_task.cpp)
 add_executable(echo_tf_node src/echo_tf.cpp)
 add_executable(test_grab_node src/test_grab.cpp)
@@ -177,12 +178,13 @@ add_executable(print_id_test src/print_id_test.cpp)
 
 ## Specify libraries to link a library or executable target against
 
-
+add_executable(arm_grab_node src/arm_grab.cpp)
 target_link_libraries(arm_grab_node
   ${catkin_LIBRARIES}
   Mini2Arm
   SerialPort
 )
+add_dependencies(arm_grab_node ${catkin_EXPORTED_TARGETS})
 
 target_link_libraries(carry_robot_task_node
   ${catkin_LIBRARIES}

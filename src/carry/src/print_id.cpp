@@ -122,13 +122,13 @@ void callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr& msg)
             if (tag_id == 1 && !tag_1_detected)
             {
                 tag_1_detected = true; // 设置标志变量为 true
-                system("roslaunch carry_robot arm_grab_1.launch");
+                system("roslaunch carry arm_grab_1.launch");
                 ros::shutdown(); // 关闭当前节点
             }
             else if (tag_id == 2 && !tag_2_detected)
             {
                 tag_2_detected = true; // 设置标志变量为 true
-                system("roslaunch carry_robot arm_grab_2.launch");
+                system("roslaunch carry arm_grab_2.launch");
                 ros::shutdown(); // 关闭当前节点
             }
         }

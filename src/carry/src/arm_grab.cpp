@@ -1,72 +1,176 @@
+#include "tf2_ros/transform_listener.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
+#include "geometry_msgs/TransformStamped.h"
+#include "geometry_msgs/PointStamped.h"
+#include <geometry_msgs/Twist.h> //yyx
+#include <std_msgs/Int32.h>
+
+#include "upros_message/ArmPosition.h"
+#include "std_srvs/Empty.h"
 #include <ros/ros.h>
-#include "../include/mini2_arm/mini2_arm.h"
-#include <apriltags2_ros/AprilTagDetectionArray.h>
+#include <tf/tf.h>
 
-Mini2_ARM arm;
-int tag_id = 0;
-int tag = 1;
-bool grab = true;
-bool grab_finished = false;
-
-void tag_callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr& msg)
+void sleep(double second)
 {
-    
-        if (grab)
-     {
-        // arm.armSetZeroCal();
-        // ros::Duration(10.0).sleep();
-        ROS_INFO("Move to grab pose!!!!!");
-        int init_pos[3] = {-200, 6000, 0};
-        arm.armSetAbsSteps(init_pos);
-        ros::Duration(3.0).sleep();
-
-        int init_1_pos[3] = {-100, 3800, -3500}; //2800,-3000
-        arm.armSetAbsSteps(init_1_pos);
-        ros::Duration(3.0).sleep();
-        ROS_INFO("Grab woods!!!!!!");
-        arm.armSetPump(true);
-        ros::Duration(2.0).sleep();
-        arm.armSetValve(false);
-        ros::Duration(2.0).sleep();
-        // arm.armSetPump(false);
-        // ros::Duration(2.0).sleep();
-
-        ROS_INFO("Move to end pos!!!!!!");
-        int end_pos[3] = {0, 6000, 0};
-        arm.armSetAbsSteps(end_pos);
-        ros::Duration(3.0).sleep();  
-        
-        grab = false;
-        grab_finished = true;
-    }
+    ros::Duration(second).sleep();
 }
 
-int main(int argc, char** argv) {
+void Move_safe(ros::Publisher& pub, double linear_x, double linear_y, double distance)
+{
+        geometry_msgs::Twist vel_msg;
+        vel_msg.linear.x = linear_x;
+        vel_msg.linear.y = linear_y;
+        int count = 0;
+        ros::Rate loop_rate(10);
+        while (ros::ok() && count < distance)
+        {
+            pub.publish(vel_msg);
+            // ros::spinOnce();
+            loop_rate.sleep();
+            count++;
+        }
+        // 停下
+        vel_msg.linear.x = 0.0;
+        vel_msg.linear.y = 0.0;
+        pub.publish(vel_msg);
+}//gly
 
-    setlocale(LC_ALL, "");
-    
-    ros::init(argc, argv, "arm_grab_node");
+
+int main(int argc, char **argv)
+{
+
+    ros::init(argc, argv, "mgrab_test");
+    ros::AsyncSpinner spinner(1);
+    spinner.start();
     ros::NodeHandle nh;
-   
-    // 初始化机械臂
-    char portname[20];
-    sprintf(portname, "/dev/arm");
-     if (!arm.init(portname, 115200)) {
-        ROS_ERROR("机械臂初始化失败，退出程序");
-        return 1; // 初始化失败，退出程序并返回状态码1
+    ros::NodeHandle private_nh("~");
+    ros::Publisher pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 10); // yyx
+
+    // 1. 先用 int 类型读取 launch 文件里的参数（因为 value="1" 会被当成 int）
+    int tag_id = 1; // 默认给个1
+    if (!private_nh.getParam("tag", tag_id)) {
+        ROS_WARN("Failed to get param 'tag', using default: %d", tag_id);
     }
+    
+    // 2. 拼接出真实的 TF 坐标系名称 (通常 apriltag 生成的坐标系叫 "tag_1", "tag_2")
+    std::string tag_link = "tag_" + std::to_string(tag_id);
+    ROS_INFO("The value of tag is %s", tag_link.c_str());
 
-    nh.getParam("arm_grab_node/tag", tag);
+    // 初始化service创建服务客户端
+    ros::ServiceClient arm_pose_client = nh.serviceClient<upros_message::ArmPosition>("/control_center/arm_pos_service");
+    ros::ServiceClient arm_grab_client = nh.serviceClient<std_srvs::Empty>("/control_center/grab_service");
 
-    ros::Duration(1.0).sleep(); // 等待初始化完成
-    ros::Subscriber tag_sub = nh.subscribe("/tag_detections", 1000, tag_callback);
+    tf2_ros::Buffer buffer;
+    tf2_ros::TransformListener listener(buffer);
+    ROS_INFO("tf coordinate transformaing....");
 
-    ros::Duration(1.0).sleep(); // 等待订阅完成
-    while (ros::ok() && !grab_finished)
+    // 3. 带异常保护的 TF 变换查询
+    geometry_msgs::TransformStamped tfs_1;
+    try
     {
-        ros::spinOnce();
-        ros::Duration(0.1).sleep(); 
+        // 获取 tag_link 到 base_link 的坐标变换
+        tfs_1 = buffer.lookupTransform("base_link", tag_link, ros::Time(0), ros::Duration(5.0));
     }
+    catch (tf2::TransformException &ex)
+    {
+        // 如果找不到坐标系，打印错误并退出，不再闪退
+        ROS_ERROR("TF transform failed: %s", ex.what());
+        ros::shutdown();
+        return 1; 
+    }
+    
+    int bias_x = 0;  // x方向的偏移，增加的机械臂往左多探的毫米数
+    int bias_y = 95; // y方向的偏移，增加的机械臂往前多探的毫米数
+    int bias_z = 75; // z方向的偏移，增加的机械臂往上多探的毫米数
+
+    // 单位转换，ros坐标系到逆运算坐标系
+    int y1 = int(tfs_1.transform.translation.x * 1000.0);//原为以底盘为坐标系的x坐标
+    int x = int(tfs_1.transform.translation.y * 1000.0);//原为以底盘为坐标系的y坐标
+    int y = y1 + bias_y;
+    int z = int(tfs_1.transform.translation.z * 1000.0) + bias_z;
+
+    std::cout << "x: " << x << " y: " << y << " z: " << z << " y1: " << y1 << std::endl;
+
+    std_srvs::Empty empty_srv;
+    geometry_msgs::Twist vel_msg;
+    ros::Rate loop_rate(10);
+    int count = 0;
+    if (y1 < 135)//太近
+    {
+        Move_safe(pub,-0.08,0,6);//后退
+    }
+    if (y1 > 145)
+    {
+        Move_safe(pub,0.06,0,int((y1 - 145)/2)); //0.08
+    }
+    if (y1 > 160 && y1 < 180)
+    {
+        y = y - 30;
+    }
+    else if (y1 >= 180 && y1 < 200)
+    {
+        y = y - 70;
+    }
+    else if (y1 >= 200 && y1 < 220)
+    {
+        y = y - 90;
+    }
+    else if (y1 >= 220 && y1 < 240)
+    {
+        y = y - 110;
+    }
+    else if (y1 >= 240 && y1 < 260)
+    {
+        y = y - 130;
+    }
+
+    if (x >= -5)//偏右
+    { //&& x<=30
+        if (x < 0)
+        {
+            x = -x;
+        }
+        Move_safe( pub, 0, 0.04,x + 2);//左移 0.06
+        x = x + 10;
+    }
+    else if (x <= -25)//偏左
+    {
+        Move_safe( pub, 0, -0.05,(-x) - 25 + 3);//右移
+    }
+
+    if (x > 30 || x < -40)
+    {
+        x = -16;
+        y = 228;
+        z = 82;
+    }
+    // 逆运算移动抓取到上方
+    upros_message::ArmPosition srv;
+    srv.request.x = -9;
+    srv.request.y = 188;
+    srv.request.z = 182;
+
+    arm_pose_client.call(srv);
+
+    sleep(3.0);
+
+    arm_grab_client.call(empty_srv);
+
+    // 下探
+    srv.request.x = x + 10;
+    srv.request.y = y + 17; // 25
+    srv.request.z = z - 7;  //-5
+    arm_pose_client.call(srv);
+    sleep(3.0);
+
+    // 抬起来
+    srv.request.x = 0;
+    srv.request.y = 188; // 50
+    srv.request.z = 182;
+    arm_pose_client.call(srv);
+    sleep(2.0);
+
     ros::shutdown();
+
     return 0;
 }
