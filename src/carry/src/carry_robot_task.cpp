@@ -139,23 +139,23 @@ int main(int argc, char** argv)
         Move_safe(pub, -0.1, 0.0, 30); // 后退30cm
         
         //导航至一号物块放置区并放置
-        Move2goal(ac, tag1_put_x, tag1_put_y,1.57);//
-        Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
+        Move2goal(ac, tag1_put_x, tag1_put_y,1.57);//1.57
+        // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
         system("roslaunch carry arm_put.launch");
-        Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
+        // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
 
         //导航至二号物块前并抓取
-        Move2goal(ac, 2.12,0.13,0);
+        Move2goal(ac, 2.12,0.13,0);//2.12
         ROS_INFO("Grab the tag2");
         system("roslaunch carry print_id.launch");
         Move_safe(pub, -0.1, 0.0, 30); // 后退30cm
-        Move_safe(pub, 0, 0.1, 20); // 左移20cm
+        // Move_safe(pub, 0, 0.1, 20); // 左移20cm
 
         //导航至二号物块放置区并放置
         Move2goal(ac, tag2_put_x, tag2_put_y,1.57);
-        Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
+        // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
         system("roslaunch carry arm_put.launch");
-        Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
+        // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
 
     }
 
@@ -166,22 +166,22 @@ int main(int argc, char** argv)
 
         //导航至二号物块放置区并放置
         Move2goal(ac, tag2_put_x, tag2_put_y,1.57);
-        Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
+        // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
         system("roslaunch carry arm_put.launch");
-        Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
+        // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
 
         //导航至一号物块前并抓取
         Move2goal(ac, 2.12,0.13,0);
         ROS_INFO("Grab the tag1");
         system("roslaunch carry print_id.launch");
         Move_safe(pub, -0.1, 0.0, 30); // 后退30cm
-        Move_safe(pub, 0, 0.1, 20); // 左移20cm
+        // Move_safe(pub, 0, 0.1, 20); // 左移20cm
 
         //导航至一号物块放置区并放置
         Move2goal(ac, tag1_put_x, tag1_put_y,1.57);
-        Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
+        // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
         system("roslaunch carry arm_put.launch");
-        Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
+        // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
     }
 
     
