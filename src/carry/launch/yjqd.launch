@@ -5,5 +5,7 @@
 
     <include file="$(find carry)/launch/arm_reset.launch" />
 
+    <include file="$(find carry)/launch/control_center.launch" />
+
     <include file="$(find carry)/launch/carry_robot.launch" />
 </launch>

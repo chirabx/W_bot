@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="carry" type="control_center" name="control_center" output="screen" />
+</launch>

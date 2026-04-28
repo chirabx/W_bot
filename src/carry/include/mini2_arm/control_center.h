@@ -17,6 +17,10 @@
 #include <eigen3/Eigen/Geometry>
 #include <tf_conversions/tf_eigen.h>
 #include <tf/tf.h>
+#include <algorithm>
+#include "upros_message/ArmPosition.h"
+#include "std_srvs/Empty.h"
+#include "arm_inverse.h"
 
 using namespace std;
 
@@ -59,8 +63,13 @@ private:
     ros::Subscriber status_sub, camera_sub, pos_sub, odom_sub, voice_sub, arm_sub,cube_color_sub;
     ros::Publisher cmd_pub, goal_pub, grab_pub, loose_pub,chat_pub;
     ros::Timer exec_timer_;
+    ros::ServiceServer armPos_service;
+    ros::ServiceServer grab_service;
+    ros::ServiceServer release_service;
+    ros::ServiceServer zero_service;
 
     Mini2_ARM arm;
+    ArmInverse arm_inverse;
 
     float quaternion_to_yaw(const Eigen::Quaterniond &q);
     Eigen::Quaterniond quaternion_from_euler(float roll, float pitch, float yaw);
@@ -82,6 +91,10 @@ private:
 
     void try_pick();
     void try_loose();
+    bool arm_position_callback(upros_message::ArmPosition::Request &req, upros_message::ArmPosition::Response &resp);
+    bool grab_callback(std_srvs::Empty::Request &req, std_srvs::Empty::Response &resp);
+    bool loose_callback(std_srvs::Empty::Request &req, std_srvs::Empty::Response &resp);
+    bool zero_callback(std_srvs::Empty::Request &req, std_srvs::Empty::Response &resp);
 };
 
 #endif

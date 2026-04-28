@@ -11,6 +11,11 @@ string cube_color;
 void ControlCenter::initROSModule()
 {
     reach_sign = false;
+    armPos_service = nn.advertiseService("arm_pos_service", &ControlCenter::arm_position_callback, this);
+    grab_service = nn.advertiseService("grab_service", &ControlCenter::grab_callback, this);
+    release_service = nn.advertiseService("release_service", &ControlCenter::loose_callback, this);
+    zero_service = nn.advertiseService("zero_service", &ControlCenter::zero_callback, this);
+
     arm_sub = nn.subscribe<std_msgs::String>("/arm_control", 100, &ControlCenter::arm_cb, this);
     cube_color_sub = nn.subscribe<std_msgs::String>("/cube_choose", 100, &ControlCenter::cube_color_cb, this);
     chat_pub =nn.advertise<std_msgs::String>("/robot_voice/tts_topic",1000);
@@ -29,6 +34,55 @@ void ControlCenter::initROSModule()
     arm.armSetPump(false);
 
     exec_timer_ = nn.createTimer(ros::Duration(0.05), &ControlCenter::execCallback, this);
+}
+
+bool ControlCenter::arm_position_callback(upros_message::ArmPosition::Request &req, upros_message::ArmPosition::Response &resp)
+{
+    int x = static_cast<int>(std::lround(req.x));
+    int y = static_cast<int>(std::lround(req.y));
+    int z = static_cast<int>(std::lround(req.z));
+    ROS_INFO("arm position request: x=%d, y=%d, z=%d", x, y, z);
+
+    vector<int> pos = arm_inverse.get_steps_from_absolute_pos(x, y, z);
+    int p[3] = {pos[0], pos[1], pos[2]};
+    bool is_all_zero = std::all_of(std::begin(p), std::end(p), [](int item) { return item == 0; });
+
+    if (is_all_zero && (x != 0 || y != 0 || z != 0))
+    {
+        ROS_WARN("arm inverse failed or out of workspace");
+        resp.status = 0;
+        return true;
+    }
+
+    arm.armSetAbsSteps(p);
+    resp.status = 1;
+    return true;
+}
+
+bool ControlCenter::grab_callback(std_srvs::Empty::Request &, std_srvs::Empty::Response &)
+{
+    ROS_INFO("grab callback: pump on, valve close");
+    arm.armSetPump(true);
+    ros::Duration(1.0).sleep();
+    arm.armSetValve(false);
+    return true;
+}
+
+bool ControlCenter::loose_callback(std_srvs::Empty::Request &, std_srvs::Empty::Response &)
+{
+    ROS_INFO("release callback: pump off, valve open");
+    arm.armSetPump(false);
+    ros::Duration(1.0).sleep();
+    arm.armSetValve(true);
+    return true;
+}
+
+bool ControlCenter::zero_callback(std_srvs::Empty::Request &, std_srvs::Empty::Response &)
+{
+    ROS_INFO("zero callback");
+    arm.armSetZeroCal();
+    ros::Duration(1.0).sleep();
+    return true;
 }
 
 void ControlCenter::status_cb(const actionlib_msgs::GoalStatusArray::ConstPtr &msg)

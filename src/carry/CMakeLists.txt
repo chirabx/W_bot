@@ -150,7 +150,7 @@ add_library(SerialPort src/serialport.cpp)
 target_link_libraries(SerialPort ${catkin_LIBRARIES})
 add_dependencies(SerialPort ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-add_library(Mini2Arm src/mini2_arm.cpp)
+add_library(Mini2Arm src/mini2_arm.cpp src/arm_inverse.cpp)
 target_link_libraries(Mini2Arm ${catkin_LIBRARIES} SerialPort)
 add_dependencies(Mini2Arm ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 

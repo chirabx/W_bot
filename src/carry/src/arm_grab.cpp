@@ -59,6 +59,16 @@ int main(int argc, char **argv)
     // 初始化service创建服务客户端
     ros::ServiceClient arm_pose_client = nh.serviceClient<upros_message::ArmPosition>("/control_center/arm_pos_service");
     ros::ServiceClient arm_grab_client = nh.serviceClient<std_srvs::Empty>("/control_center/grab_service");
+    if (!arm_pose_client.waitForExistence(ros::Duration(10.0)))
+    {
+        ROS_ERROR("Service not available: /control_center/arm_pos_service");
+        return 1;
+    }
+    if (!arm_grab_client.waitForExistence(ros::Duration(10.0)))
+    {
+        ROS_ERROR("Service not available: /control_center/grab_service");
+        return 1;
+    }
 
     tf2_ros::Buffer buffer;
     tf2_ros::TransformListener listener(buffer);
@@ -146,24 +156,40 @@ int main(int argc, char **argv)
     srv.request.y = 188;
     srv.request.z = 182;
 
-    arm_pose_client.call(srv);
+    if (!arm_pose_client.call(srv) || srv.response.status != 1)
+    {
+        ROS_ERROR("Failed to move arm to pre-grab pose");
+        return 1;
+    }
 
     sleep(3.0);
 
-    arm_grab_client.call(empty_srv);
+    if (!arm_grab_client.call(empty_srv))
+    {
+        ROS_ERROR("Failed to call grab service");
+        return 1;
+    }
 
     // 下探
     srv.request.x = x + 10;
     srv.request.y = y + 17; // 25
     srv.request.z = z - 7;  //-5
-    arm_pose_client.call(srv);
+    if (!arm_pose_client.call(srv) || srv.response.status != 1)
+    {
+        ROS_ERROR("Failed to move arm to target pose");
+        return 1;
+    }
     sleep(3.0);
 
     // 抬起来
     srv.request.x = 0;
     srv.request.y = 188; // 50
     srv.request.z = 182;
-    arm_pose_client.call(srv);
+    if (!arm_pose_client.call(srv) || srv.response.status != 1)
+    {
+        ROS_ERROR("Failed to lift arm after grab");
+        return 1;
+    }
     sleep(2.0);
 
     ros::shutdown();
