@@ -95,54 +95,50 @@ int main(int argc, char **argv)
     geometry_msgs::Twist vel_msg;
     ros::Rate loop_rate(10);
     int count = 0;
-    if (y1 < 135)//太近
+    if (y1 <= 292)//太近135
     {
-        Move_safe(pub,-0.08,0,6);//后退
+        Move_safe(pub,-0.08,0,1);//后退 6
     }
-    if (y1 > 145)
+    if (y1 >= 342)//145
     {
-        Move_safe(pub,0.06,0,int((y1 - 145)/2)); //0.08
+        Move_safe(pub,0.06,0,int(abs(y1 - 500)/2)); //0.08
     }
-    if (y1 > 160 && y1 < 180)
+    if (y1 > 357 && y1 < 377)//y1 > 160 && y1 < 180
     {
         y = y - 30;
     }
-    else if (y1 >= 180 && y1 < 200)
+    else if (y1 >= 377 && y1 < 397)//y1 >= 180 && y1 < 200
     {
         y = y - 70;
     }
-    else if (y1 >= 200 && y1 < 220)
+    else if (y1 >= 397 && y1 < 417)
     {
         y = y - 90;
     }
-    else if (y1 >= 220 && y1 < 240)
+    else if (y1 >= 417 && y1 < 437)
     {
         y = y - 110;
     }
-    else if (y1 >= 240 && y1 < 260)
+    else if (y1 >= 437 && y1 < 457)
     {
         y = y - 130;
     }
 
-    if (x >= -5)//偏右
+    if (x <= -38)//偏右
     { //&& x<=30
-        if (x < 0)
-        {
-            x = -x;
-        }
-        Move_safe( pub, 0, 0.04,x + 2);//左移 0.06
+        Move_safe( pub, 0, 0.04,(-x) - 65);//左移 0.06
         x = x + 10;
     }
-    else if (x <= -25)//偏左
+    else if (x >= 10)//偏左
     {
-        Move_safe( pub, 0, -0.05,(-x) - 25 + 3);//右移
+        Move_safe( pub, 0, -0.05,x - 22);//右移
     }
 
-    if (x > 30 || x < -40)
+    if (x > 15 || x < -40)
     {
-        x = -16;
-        y = 228;
-        z = 82;
+        x = -14;
+        y = 416;
+        z = 249;
     }
     // 逆运算移动抓取到上方
     upros_message::ArmPosition srv;

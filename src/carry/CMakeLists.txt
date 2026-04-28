@@ -166,6 +166,8 @@ add_executable(arm_put_node src/arm_put.cpp)
 add_executable(arm_reset_node src/arm_reset.cpp)
 add_executable(print_id src/print_id.cpp)
 add_executable(print_id_test src/print_id_test.cpp)
+add_executable(print_y1_node src/print_y1.cpp)
+
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -217,6 +219,9 @@ target_link_libraries(print_id
 )
 
 target_link_libraries(print_id_test
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(print_y1_node
   ${catkin_LIBRARIES}
 )
 #############

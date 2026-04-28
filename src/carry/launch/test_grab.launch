@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="carry" type="test_grab_node" name="test_grab_node" output="screen">
+    </node>
+</launch>
