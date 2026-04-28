@@ -69,6 +69,7 @@ int main(int argc, char **argv)
         ROS_ERROR("Service not available: /control_center/grab_service");
         return 1;
     }
+    ROS_INFO("Services ready: /control_center/arm_pos_service, /control_center/grab_service");
 
     tf2_ros::Buffer buffer;
     tf2_ros::TransformListener listener(buffer);
@@ -76,17 +77,30 @@ int main(int argc, char **argv)
 
     // 3. 带异常保护的 TF 变换查询
     geometry_msgs::TransformStamped tfs_1;
+    bool use_base_link_fallback = false;
+    int arm_base_forward_offset_mm = 230;
+    private_nh.param("arm_base_forward_offset_mm", arm_base_forward_offset_mm, 230);
     try
     {
-        // 获取 tag_link 到 base_link 的坐标变换
-        tfs_1 = buffer.lookupTransform("base_link", tag_link, ros::Time(0), ros::Duration(5.0));
+        // 优先直接获取 tag_link 到 arm_base_link 的坐标变换
+        tfs_1 = buffer.lookupTransform("arm_base_link", tag_link, ros::Time(0), ros::Duration(5.0));
+        ROS_INFO("Using TF source: arm_base_link -> %s", tag_link.c_str());
     }
     catch (tf2::TransformException &ex)
     {
-        // 如果找不到坐标系，打印错误并退出，不再闪退
-        ROS_ERROR("TF transform failed: %s", ex.what());
-        ros::shutdown();
-        return 1; 
+        ROS_WARN("TF arm_base_link->%s failed: %s, fallback to base_link", tag_link.c_str(), ex.what());
+        try
+        {
+            tfs_1 = buffer.lookupTransform("base_link", tag_link, ros::Time(0), ros::Duration(5.0));
+            use_base_link_fallback = true;
+            ROS_INFO("Using TF source: base_link -> %s", tag_link.c_str());
+        }
+        catch (tf2::TransformException &ex2)
+        {
+            ROS_ERROR("TF fallback base_link->%s failed: %s", tag_link.c_str(), ex2.what());
+            ros::shutdown();
+            return 1;
+        }
     }
     
     int bias_x = 0;  // x方向的偏移，增加的机械臂往左多探的毫米数
@@ -95,68 +109,88 @@ int main(int argc, char **argv)
 
     // 单位转换，ros坐标系到逆运算坐标系
     int y1 = int(tfs_1.transform.translation.x * 1000.0);//原为以底盘为坐标系的x坐标
+    ROS_INFO("Raw TF(mm): tx=%d ty=%d tz=%d",
+             int(tfs_1.transform.translation.x * 1000.0),
+             int(tfs_1.transform.translation.y * 1000.0),
+             int(tfs_1.transform.translation.z * 1000.0));
+    if (use_base_link_fallback)
+    {
+        ROS_WARN("Applying base->arm forward offset: %d mm", arm_base_forward_offset_mm);
+        y1 -= arm_base_forward_offset_mm;
+    }
     int x = int(tfs_1.transform.translation.y * 1000.0);//原为以底盘为坐标系的y坐标
     int y = y1 + bias_y;
     int z = int(tfs_1.transform.translation.z * 1000.0) + bias_z;
 
-    std::cout << "x: " << x << " y: " << y << " z: " << z << " y1: " << y1 << std::endl;
+    ROS_INFO("Initial target(mm): x=%d y=%d z=%d y1=%d (bias y=%d z=%d)", x, y, z, y1, bias_y, bias_z);
 
     std_srvs::Empty empty_srv;
-    geometry_msgs::Twist vel_msg;
-    ros::Rate loop_rate(10);
-    int count = 0;
-    if (y1 <= 292)//太近135
+    if (y1 < 135)
     {
-        Move_safe(pub,-0.08,0,1);//后退 6
+        ROS_INFO("Base correction: too close, move back");
+        Move_safe(pub,-0.08,0,6);
     }
-    if (y1 >= 342)//145
+    if (y1 > 145)
     {
-        Move_safe(pub,0.06,0,int(abs(y1 - 500)/2)); //0.08
+        ROS_INFO("Base correction: too far, move forward for %d ticks", int((y1 - 145) / 2));
+        Move_safe(pub,0.06,0,int((y1 - 145) / 2));
     }
-    if (y1 > 357 && y1 < 377)//y1 > 160 && y1 < 180
+    if (y1 > 160 && y1 < 180)
     {
         y = y - 30;
     }
-    else if (y1 >= 377 && y1 < 397)//y1 >= 180 && y1 < 200
+    else if (y1 >= 180 && y1 < 200)
     {
         y = y - 70;
     }
-    else if (y1 >= 397 && y1 < 417)
+    else if (y1 >= 200 && y1 < 220)
     {
         y = y - 90;
     }
-    else if (y1 >= 417 && y1 < 437)
+    else if (y1 >= 220 && y1 < 240)
     {
         y = y - 110;
     }
-    else if (y1 >= 437 && y1 < 457)
+    else if (y1 >= 240 && y1 < 260)
     {
         y = y - 130;
     }
 
-    if (x <= -38)//偏右
-    { //&& x<=30
-        Move_safe( pub, 0, 0.04,(-x) - 65);//左移 0.06
+    if (x >= -5)
+    {
+        if (x < 0)
+        {
+            x = -x;
+        }
+        ROS_INFO("Base correction: move left for %d ticks", x + 2);
+        Move_safe(pub, 0, 0.04, x + 2);
         x = x + 10;
     }
-    else if (x >= 10)//偏左
+    else if (x <= -25)
     {
-        Move_safe( pub, 0, -0.05,x - 22);//右移
+        ROS_INFO("Base correction: move right for %d ticks", (-x) - 25 + 3);
+        Move_safe(pub, 0, -0.05,(-x) - 25 + 3);
     }
 
-    if (x > 15 || x < -40)
+    if (x > 30 || x < -40)
     {
-        x = -14;
-        y = 416;
-        z = 249;
+        ROS_WARN("Target out of x range after correction, fallback to safe target");
+        x = -16;
+        y = 228;
+        z = 82;
     }
+    ROS_INFO("Final target(mm): x=%d y=%d z=%d", x, y, z);
+
     // 逆运算移动抓取到上方
     upros_message::ArmPosition srv;
     srv.request.x = -9;
     srv.request.y = 188;
     srv.request.z = 182;
+    ROS_INFO("Call arm_pos_service pre-grab: x=%.1f y=%.1f z=%.1f", srv.request.x, srv.request.y, srv.request.z);
 
-    if (!arm_pose_client.call(srv) || srv.response.status != 1)
+    bool ok = arm_pose_client.call(srv);
+    ROS_INFO("arm_pos_service pre-grab result: call=%d status=%d", ok ? 1 : 0, int(srv.response.status));
+    if (!ok || srv.response.status != 1)
     {
         ROS_ERROR("Failed to move arm to pre-grab pose");
         return 1;
@@ -164,7 +198,9 @@ int main(int argc, char **argv)
 
     sleep(3.0);
 
-    if (!arm_grab_client.call(empty_srv))
+    ok = arm_grab_client.call(empty_srv);
+    ROS_INFO("grab_service result: call=%d", ok ? 1 : 0);
+    if (!ok)
     {
         ROS_ERROR("Failed to call grab service");
         return 1;
@@ -174,7 +210,10 @@ int main(int argc, char **argv)
     srv.request.x = x + 10;
     srv.request.y = y + 17; // 25
     srv.request.z = z - 7;  //-5
-    if (!arm_pose_client.call(srv) || srv.response.status != 1)
+    ROS_INFO("Call arm_pos_service target: x=%.1f y=%.1f z=%.1f", srv.request.x, srv.request.y, srv.request.z);
+    ok = arm_pose_client.call(srv);
+    ROS_INFO("arm_pos_service target result: call=%d status=%d", ok ? 1 : 0, int(srv.response.status));
+    if (!ok || srv.response.status != 1)
     {
         ROS_ERROR("Failed to move arm to target pose");
         return 1;
@@ -185,7 +224,10 @@ int main(int argc, char **argv)
     srv.request.x = 0;
     srv.request.y = 188; // 50
     srv.request.z = 182;
-    if (!arm_pose_client.call(srv) || srv.response.status != 1)
+    ROS_INFO("Call arm_pos_service lift: x=%.1f y=%.1f z=%.1f", srv.request.x, srv.request.y, srv.request.z);
+    ok = arm_pose_client.call(srv);
+    ROS_INFO("arm_pos_service lift result: call=%d status=%d", ok ? 1 : 0, int(srv.response.status));
+    if (!ok || srv.response.status != 1)
     {
         ROS_ERROR("Failed to lift arm after grab");
         return 1;
