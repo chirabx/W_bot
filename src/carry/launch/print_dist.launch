@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="carry" type="print_dist_node" name="print_dist_node" output="screen">
+    </node>
+</launch>

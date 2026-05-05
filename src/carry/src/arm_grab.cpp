@@ -108,7 +108,7 @@ int main(int argc, char **argv)
     int bias_z = 75; // z方向的偏移，增加的机械臂往上多探的毫米数
 
     // 单位转换，ros坐标系到逆运算坐标系
-    int y1 = int(tfs_1.transform.translation.x * 1000.0);//原为以底盘为坐标系的x坐标
+    int dist = int(tfs_1.transform.translation.x * 1000.0);//原为以底盘为坐标系的x坐标,前后距离（distance）
     ROS_INFO("Raw TF(mm): tx=%d ty=%d tz=%d",
              int(tfs_1.transform.translation.x * 1000.0),
              int(tfs_1.transform.translation.y * 1000.0),
@@ -116,70 +116,65 @@ int main(int argc, char **argv)
     if (use_base_link_fallback)
     {
         ROS_WARN("Applying base->arm forward offset: %d mm", arm_base_forward_offset_mm);
-        y1 -= arm_base_forward_offset_mm;
+        dist -= arm_base_forward_offset_mm;
     }
-    int x = int(tfs_1.transform.translation.y * 1000.0);//原为以底盘为坐标系的y坐标
-    int y = y1 + bias_y;
-    int z = int(tfs_1.transform.translation.z * 1000.0) + bias_z;
+    int arm_x = int(tfs_1.transform.translation.y * 1000.0);//原为以底盘为坐标系的y坐标,左右
+    int arm_y = dist + bias_y;// 前后距离加上偏移得到机械臂y坐标
+    int arm_z = int(tfs_1.transform.translation.z * 1000.0) + bias_z;// 高度加上偏移得到机械臂z坐标
 
-    ROS_INFO("Initial target(mm): x=%d y=%d z=%d y1=%d (bias y=%d z=%d)", x, y, z, y1, bias_y, bias_z);
+    ROS_INFO("Initial target(mm): arm_x=%d arm_y=%d arm_z=%d dist=%d (bias arm_y=%d arm_z=%d)", arm_x, arm_y, arm_z, dist, bias_y, bias_z);
 
     std_srvs::Empty empty_srv;
-    if (y1 < 135)
+    if (dist < 293)
     {
         ROS_INFO("Base correction: too close, move back");
         Move_safe(pub,-0.08,0,6);
     }
-    if (y1 > 145)
+    if (dist > 344)
     {
-        ROS_INFO("Base correction: too far, move forward for %d ticks", int((y1 - 145) / 2));
-        Move_safe(pub,0.06,0,int((y1 - 145) / 2));
+        ROS_INFO("Base correction: too far, move forward for %d ticks", int((dist - 145) / 2));
+        Move_safe(pub,0.06,0,int((dist - 145) / 2));
     }
-    if (y1 > 160 && y1 < 180)
+    if (dist > 359 && dist < 379)
     {
-        y = y - 30;
+        arm_y = arm_y - 30;
     }
-    else if (y1 >= 180 && y1 < 200)
+    else if (dist >= 379 && dist < 399)
     {
-        y = y - 70;
+        arm_y = arm_y - 70;
     }
-    else if (y1 >= 200 && y1 < 220)
+    else if (dist >= 399 && dist < 419)
     {
-        y = y - 90;
+        arm_y = arm_y - 90;
     }
-    else if (y1 >= 220 && y1 < 240)
+    else if (dist >= 419 && dist < 439)
     {
-        y = y - 110;
+        arm_y = arm_y - 110;
     }
-    else if (y1 >= 240 && y1 < 260)
+    else if (dist >= 439 && dist < 459)
     {
-        y = y - 130;
-    }
-
-    if (x >= -5)
-    {
-        if (x < 0)
-        {
-            x = -x;
-        }
-        ROS_INFO("Base correction: move left for %d ticks", x + 2);
-        Move_safe(pub, 0, 0.04, x + 2);
-        x = x + 10;
-    }
-    else if (x <= -25)
-    {
-        ROS_INFO("Base correction: move right for %d ticks", (-x) - 25 + 3);
-        Move_safe(pub, 0, -0.05,(-x) - 25 + 3);
+        arm_y = arm_y - 130;
     }
 
-    if (x > 30 || x < -40)
+    if (arm_x >= -38 && arm_x <-10)
+    {
+        ROS_INFO("Base correction: move left for %d ticks", (-arm_x - 10)*100);
+        Move_safe(pub, 0, 0.04, (-arm_x - 10)*100);
+    }
+    else if (arm_x > -10 && arm_x <= 10)
+    {
+        ROS_INFO("Base correction: move right for %d ticks", (arm_x + 10)*100);
+        Move_safe(pub, 0, -0.05,(arm_x + 10)*100);
+    }
+
+    if (arm_x > 30 || arm_x < -40)
     {
         ROS_WARN("Target out of x range after correction, fallback to safe target");
-        x = -16;
-        y = 228;
-        z = 82;
+        arm_x = -16;
+        arm_y = 228;
+        arm_z = 82;
     }
-    ROS_INFO("Final target(mm): x=%d y=%d z=%d", x, y, z);
+    ROS_INFO("Final target(mm): arm_x=%d arm_y=%d arm_z=%d", arm_x, arm_y, arm_z);
 
     // 逆运算移动抓取到上方
     upros_message::ArmPosition srv;
@@ -207,9 +202,9 @@ int main(int argc, char **argv)
     }
 
     // 下探
-    srv.request.x = x + 10;
-    srv.request.y = y + 17; // 25
-    srv.request.z = z - 7;  //-5
+    srv.request.x = 10;
+    srv.request.y = 200; // 25
+    srv.request.z = 120;  //-5
     ROS_INFO("Call arm_pos_service target: x=%.1f y=%.1f z=%.1f", srv.request.x, srv.request.y, srv.request.z);
     ok = arm_pose_client.call(srv);
     ROS_INFO("arm_pos_service target result: call=%d status=%d", ok ? 1 : 0, int(srv.response.status));

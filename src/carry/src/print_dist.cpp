@@ -43,13 +43,13 @@ int main(int argc, char **argv)
         }
 
         // 单位转换（毫米）
-        int y1 = static_cast<int>(tfs.transform.translation.x * 1000.0);
-        int x  = static_cast<int>(tfs.transform.translation.y * 1000.0);
-        int y  = y1 + bias_y;
-        int z  = static_cast<int>(tfs.transform.translation.z * 1000.0) + bias_z;
+        int dist = static_cast<int>(tfs.transform.translation.x * 1000.0);
+        int arm_x  = static_cast<int>(tfs.transform.translation.y * 1000.0);
+        int arm_y  = dist + bias_y;
+        int arm_z  = static_cast<int>(tfs.transform.translation.z * 1000.0) + bias_z;
 
         // 实时输出
-        ROS_INFO("y1= %3d mm, x= %3d mm, y= %3d mm, z= %3d mm", y1, x, y, z);
+        ROS_INFO("dist= %3d mm, arm_x= %3d mm, arm_y= %3d mm, arm_z= %3d mm", dist, arm_x, arm_y, arm_z);
 
         rate.sleep();
     }
