@@ -18,23 +18,24 @@ void tag_callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr& msg)
         ROS_INFO("Move to grab pose!!!!!");
         int init_pos[3] = {-200, 6000, 0};
         arm.armSetAbsSteps(init_pos);
-        ros::Duration(3.0).sleep();
 
-        int init_1_pos[3] = {-100, 3800, -3500}; //2800,-3000
+        ros::Duration(3.0).sleep();
+        arm.armSetPump(true);
+        int init_1_pos[3] = {0, 3650, -3500}; //2800,-3000
         arm.armSetAbsSteps(init_1_pos);
+
         ros::Duration(3.0).sleep();
         ROS_INFO("Grab woods!!!!!!");
-        arm.armSetPump(true);
-        ros::Duration(2.0).sleep();
+
         arm.armSetValve(false);
-        ros::Duration(2.0).sleep();
+        ros::Duration(1.0).sleep();
         // arm.armSetPump(false);
         // ros::Duration(2.0).sleep();
 
         ROS_INFO("Move to end pos!!!!!!");
         int end_pos[3] = {0, 6000, 0};
         arm.armSetAbsSteps(end_pos);
-        ros::Duration(3.0).sleep();  
+        ros::Duration(2.0).sleep();  
         
         grab = false;
         grab_finished = true;

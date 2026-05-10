@@ -14,7 +14,7 @@ void try_loose()
     ros::Duration(2.0).sleep();
     arm.armSetValve(true);
     arm.armSetPump(false);
-    ros::Duration(2.0).sleep();
+    ros::Duration(1.0).sleep();//2
 }
 
 int main(int argc, char** argv) {

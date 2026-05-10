@@ -186,8 +186,8 @@ int main(int argc, char** argv)
     
     //返回出发点
     Move2goal(ac, 0.05, 0.05,0);
-    Move_safe(pub, 0.0, -0.1, 20); 
-    Move_safe(pub, -0.1, 0.0, 20); 
+    Move_safe(pub, 0.0, -0.1, 30); 
+    Move_safe(pub, -0.1, 0.0, 30); 
     if (ac.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
     {
         ROS_INFO("Back !!!!");
