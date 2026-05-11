@@ -120,7 +120,7 @@ int main(int argc, char** argv)
     Move_safe(pub, 0.0, 0.3, 25);
     Move_safe(pub, 0.3, 0.0, 60); 
     //导航至桌子左侧前
-    Move2goal(ac, 2.12,0.13,-0.04);//jioa du=0
+    Move2goal(ac, 2.12,0.11,-0.04);//jioa du=0 y=0.13
     system("roslaunch carry print_id.launch");
 
 
@@ -142,9 +142,8 @@ int main(int argc, char** argv)
         // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
         system("roslaunch carry arm_put.launch");
         // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
-
         //导航至二号物块前并抓取
-        Move2goal(ac, 2.12,0.13,0);//2.12
+        Move2goal(ac, 2.12,0.11,0);//2.12,0.13
         ROS_INFO("Grab the tag2");
         system("roslaunch carry print_id.launch");
         Move_safe(pub, -0.1, 0.0, 30); // 后退30cm

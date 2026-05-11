@@ -20,8 +20,8 @@ Mini2_ARM arm;
 int main(int argc, char** argv) {
     ros::init(argc, argv, "arm_put_node");
     ros::NodeHandle nh;
-    arm.armSetValve(true);
-    arm.armSetPump(false);
+    arm.armSetValve(true);//打开气阀（松开夹爪）
+    arm.armSetPump(false);//关闭气泵
     // 初始化机械臂
     char portname[20];
     sprintf(portname, "/dev/arm");
@@ -29,10 +29,10 @@ int main(int argc, char** argv) {
 
     ROS_INFO("Starting arm reset process...");
     // try_loose();
-    
+    // 进行机械臂复位操作
+    arm.armSetZeroCal();//执行机械臂零点校准    
     ROS_INFO("Arm reset completed.");
     // 进行机械臂复位操作
-    arm.armSetZeroCal();
     // 可以根据需要添加一些延时，确保复位操作完成
     // ros::Duration(10.0).sleep();
 

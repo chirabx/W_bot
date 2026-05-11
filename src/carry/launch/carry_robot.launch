@@ -6,14 +6,14 @@
         <!-- 定义抓取目标桌面的y坐标 -->
         <!--<param name="grab_desk_y" value="0.18"/> -->
 
-        <param name="tag1_put_x" value="1.90"/>
-        <!-- 定义放置tag1的y坐标 x=1.85 y=2.25-->
-        <param name="tag1_put_y" value="2.20"/>
+        <param name="tag1_put_x" value="2.00"/>
+        <!-- 定义放置tag1的y坐标 x=1.85,1.90 y=2.25,2.20-->
+        <param name="tag1_put_y" value="2.30"/>
 
-        <!-- 定义放置tag2的x坐标 0.80-->
+        <!-- 定义放置tag2的x坐标 0.80,0.95--> 
         <param name="tag2_put_x" value="0.90"/>
-        <!-- 定义放置tag2的y坐标 y=2.25-->
-        <param name="tag2_put_y" value="2.20"/>
+        <!-- 定义放置tag2的y坐标 y=2.25,2.12,2.20-->
+        <param name="tag2_put_y" value="2.30"/>
 
         <!-- 定义左侧放置偏移量 -->
         <param name="offset_left" value="0.01"/>

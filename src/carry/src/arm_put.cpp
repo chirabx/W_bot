@@ -14,7 +14,7 @@ void try_loose()
     ros::Duration(2.0).sleep();
     arm.armSetValve(true);
     arm.armSetPump(false);
-    ros::Duration(1.0).sleep();//2
+    //ros::Duration(10.0).sleep();//2
 }
 
 int main(int argc, char** argv) {
@@ -29,11 +29,14 @@ int main(int argc, char** argv) {
     ROS_INFO("Starting arm reset process...");
     try_loose();
     
-    ROS_INFO("Arm reset completed.");
+    
+    // 可以根据需要添加一些延时，确保复位操作完成
+    //ros::Duration(10.0).sleep();
     // 进行机械臂复位操作
     arm.armSetZeroCal();
-    // 可以根据需要添加一些延时，确保复位操作完成
-    // ros::Duration(10.0).sleep();
+    ros::Duration(10.0).sleep();
+    ROS_INFO("Arm reset completed.");
+    
     ros::shutdown();
     return 0;
 }
