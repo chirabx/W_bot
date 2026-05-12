@@ -20,7 +20,7 @@ void tag_callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr& msg)
         arm.armSetAbsSteps(init_pos);
 
         ros::Duration(3.0).sleep();
-        arm.armSetPump(true);
+        arm.armSetPump(true);//开气泵
         int init_1_pos[3] = {0, 3650, -3500}; //2800,-3000
         arm.armSetAbsSteps(init_1_pos);
 
@@ -52,7 +52,8 @@ int main(int argc, char** argv) {
     // 初始化机械臂
     char portname[20];
     sprintf(portname, "/dev/arm");
-     if (!arm.init(portname, 115200)) {
+    if (!arm.init(portname, 115200)) 
+    {
         ROS_ERROR("机械臂初始化失败，退出程序");
         return 1; // 初始化失败，退出程序并返回状态码1
     }

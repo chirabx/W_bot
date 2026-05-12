@@ -10,6 +10,8 @@
 #include <geometry_msgs/Twist.h>
 #include <std_msgs/Int32.h>
 
+#include "../include/mini2_arm/mini2_arm.h"
+Mini2_ARM arm;
 using namespace std;
 
 typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
@@ -181,7 +183,21 @@ int main(int argc, char** argv)
         system("roslaunch carry arm_put.launch");
         // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
     }
+    // 初始化机械臂（如果还没初始化过）
+    char portname[20];
+    sprintf(portname, "/dev/arm");
+    if (!arm.init(portname, 115200)) 
+    {
+        ROS_ERROR("Failed to initialize arm");
+        return 1;
+    }
 
+    // 进行机械臂复位操作
+    arm.armSetZeroCal();
+    ros::Duration(10.0).sleep();
+    // int release_pos_2[3] = {0, 0, -6000};
+    // arm.armSetAbsSteps(release_pos_2);
+    ROS_INFO("Arm reset completed.");
     
     //返回出发点
     Move2goal(ac, 0.05, 0.05,0);

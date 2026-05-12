@@ -186,6 +186,8 @@ target_link_libraries(arm_grab_node
 
 target_link_libraries(carry_robot_task_node
   ${catkin_LIBRARIES}
+  Mini2Arm
+  SerialPort
 )
 
 target_link_libraries(echo_tf_node
