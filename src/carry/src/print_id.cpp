@@ -154,6 +154,7 @@ void callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr &msg)
 
     if (try_again == false) // 完成所有调节，实现抓取
     {
+        ROS_INFO("111111111111111111111111");
         if (tag_id == 1)
         {
             system("roslaunch carry arm_grab_1.launch");
