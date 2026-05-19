@@ -7,8 +7,8 @@
 #include <geometry_msgs/Quaternion.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <nav_msgs/Path.h>
-#include <geometry_msgs/Twist.h>
 #include <std_msgs/Int32.h>
+#include <geometry_msgs/Twist.h>
 
 #include "../include/mini2_arm/mini2_arm.h"
 

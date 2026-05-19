@@ -19,7 +19,7 @@ void tag_callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr& msg)
         int init_pos[3] = {0, 6000, 0};
         arm.armSetAbsSteps(init_pos);
 
-        ros::Duration(3.0).sleep();
+        ros::Duration(1.0).sleep(); //3.0
         arm.armSetPump(true);//开气泵
         
         int init_1_pos[3] = {0, 3650, -3500}; //2800,-3000
