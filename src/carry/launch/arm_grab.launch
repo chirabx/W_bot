@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="carry" type="arm_grab_node" name="arm_grab_node" output="screen" />
+</launch>

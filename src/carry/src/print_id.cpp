@@ -105,11 +105,13 @@ void callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr &msg)
 
             if (roll <= -roll_adjust_min && roll >= -roll_adjust_max)
             {
-                if(!slow_flag) Turn_safe(pub, 0.07, 6); // zuo
+                if (!slow_flag)
+                    Turn_safe(pub, 0.07, 6); // zuo
             }
             else if (roll >= roll_adjust_min && roll <= roll_adjust_max)
             {
-                if(!slow_flag) Turn_safe(pub, -0.07, 6); // you
+                if (!slow_flag)
+                    Turn_safe(pub, -0.07, 6); // you
             }
             else // 倾斜角正常
             {
@@ -157,16 +159,8 @@ void callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr &msg)
     if (try_again == false) // 完成所有调节，实现抓取
     {
         ROS_INFO("111111111111111111111111");
-        if (tag_id == 1)
-        {
-            system("roslaunch carry arm_grab_1.launch");
-            ros::shutdown(); // 关闭当前节点
-        }
-        else if (tag_id == 2)
-        {
-            system("roslaunch carry arm_grab_2.launch");
-            ros::shutdown(); // 关闭当前节点
-        }
+        system("roslaunch carry arm_grab.launch");
+        ros::shutdown(); // 关闭当前节点
     }
 }
 

@@ -6,77 +6,75 @@
 #include <stdio.h>
 
 ros::Publisher pub;
-ros::Publisher tag_id_pub; // 用于发布 tag_id 的发布者
-bool tag_1_detected = false;   // 标志变量，表示是否检测到过 ID 为 1 的 AprilTag
-bool tag_2_detected = false;   // 标志变量，表示是否检测到过 ID 为 2 的 AprilTag
+ros::Publisher tag_id_pub;   // 用于发布 tag_id 的发布者
+bool tag_1_detected = false; // 标志变量，表示是否检测到过 ID 为 1 的 AprilTag
+bool tag_2_detected = false; // 标志变量，表示是否检测到过 ID 为 2 的 AprilTag
 bool try_again = true;
 int tag_id = 0;
 
-
-
-void Move_safe(ros::Publisher& pub, double linear_x, double linear_y, double distance)
+void Move_safe(ros::Publisher &pub, double linear_x, double linear_y, double distance)
 {
     geometry_msgs::Twist vel_msg;
-        vel_msg.linear.x = linear_x;
-        vel_msg.linear.y = linear_y;
-        int count = 0;
-        ros::Rate loop_rate(10);
-        while (ros::ok() && count < distance)
-        {
-            pub.publish(vel_msg);
-            // ros::spinOnce();
-            loop_rate.sleep();
-            count++;
-        }
-        // 停下
-        vel_msg.linear.x = 0.0;
-        vel_msg.linear.y = 0.0;
+    vel_msg.linear.x = linear_x;
+    vel_msg.linear.y = linear_y;
+    int count = 0;
+    ros::Rate loop_rate(10);
+    while (ros::ok() && count < distance)
+    {
         pub.publish(vel_msg);
+        // ros::spinOnce();
+        loop_rate.sleep();
+        count++;
+    }
+    // 停下
+    vel_msg.linear.x = 0.0;
+    vel_msg.linear.y = 0.0;
+    pub.publish(vel_msg);
 }
 
-void Turn_safe(ros::Publisher& pub, double angular_z, double distance)
+void Turn_safe(ros::Publisher &pub, double angular_z, double distance)
 {
     geometry_msgs::Twist vel_msg;
-        vel_msg.angular.z = angular_z;
-        int count = 0;
-        ros::Rate loop_rate(10);
-        while (ros::ok() && count < distance)
-        {
-            pub.publish(vel_msg);
-            // ros::spinOnce();
-            loop_rate.sleep();
-            count++;
-        }
-        // 停下
-        vel_msg.angular.z = 0.0;
+    vel_msg.angular.z = angular_z;
+    int count = 0;
+    ros::Rate loop_rate(10);
+    while (ros::ok() && count < distance)
+    {
         pub.publish(vel_msg);
+        // ros::spinOnce();
+        loop_rate.sleep();
+        count++;
+    }
+    // 停下
+    vel_msg.angular.z = 0.0;
+    pub.publish(vel_msg);
 }
 
-void callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr& msg)
+void callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr &msg)
 {
     size_t num_tags = msg->detections.size(); // 检测到的 AprilTag 数量
-    if (num_tags == 0) // 没有检测到任何 AprilTag
+    if (num_tags == 0)                        // 没有检测到任何 AprilTag
     {
         ROS_INFO("No AprilTags detected.");
     }
-    
-    else if(num_tags == 2)
+
+    else if (num_tags == 2)
     {
         Move_safe(pub, 0, 0.04, 3);
     }
     else
     {
-        for (const auto& detection : msg->detections)// 遍历检测到的 AprilTag
+        for (const auto &detection : msg->detections) // 遍历检测到的 AprilTag
         {
-            tag_id = detection.id[0];  // AprilTag 的 ID 是一个整数数组，通常取第一个元素
+            tag_id = detection.id[0];                     // AprilTag 的 ID 是一个整数数组，通常取第一个元素
             ROS_INFO("Detected AprilTag ID: %d", tag_id); // 输出 AprilTag 的 ID
 
-            const auto& pose = detection.pose; // 获取 AprilTag 的位姿
+            const auto &pose = detection.pose; // 获取 AprilTag 的位姿
             double x = pose.pose.pose.position.x * 1000;
             double y = pose.pose.pose.position.y * 1000;
             double z = pose.pose.pose.position.z * 1000;
 
-            const auto& quaternion = detection.pose.pose.pose.orientation;
+            const auto &quaternion = detection.pose.pose.pose.orientation;
             // 将四元数转换为欧拉角
             tf::Quaternion q(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
             tf::Matrix3x3 m(q);
@@ -97,17 +95,10 @@ void callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr& msg)
 
     if (try_again == false) // 完成所有调节，实现抓取
     {
-        if (tag_id == 1)
-        {
-            system("roslaunch carry arm_grab_1.launch");
-            ros::shutdown(); // 关闭当前节点
-        }
-        else if (tag_id == 2)
-        {
-            system("roslaunch carry arm_grab_2.launch");
-            ros::shutdown(); // 关闭当前节点
-        }
+        system("roslaunch carry arm_grab.launch");
+        ros::shutdown(); // 关闭当前节点
     }
+}
 }
 
 int main(int argc, char **argv)
@@ -128,4 +119,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-
