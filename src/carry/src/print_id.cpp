@@ -103,15 +103,13 @@ void callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr &msg)
                 slow_flag = false;
             }
 
-            if (roll <= -roll_adjust_min && roll >= -roll_adjust_max)
+            if (!slow_flag && roll <= -roll_adjust_min && roll >= -roll_adjust_max)
             {
-                if (!slow_flag)
-                    Turn_safe(pub, 0.07, 6); // zuo
+                Turn_safe(pub, 0.07, 6); // zuo
             }
-            else if (roll >= roll_adjust_min && roll <= roll_adjust_max)
+            else if (!slow_flag && roll >= roll_adjust_min && roll <= roll_adjust_max)
             {
-                if (!slow_flag)
-                    Turn_safe(pub, -0.07, 6); // you
+                Turn_safe(pub, -0.07, 6); // you
             }
             else // 倾斜角正常
             {

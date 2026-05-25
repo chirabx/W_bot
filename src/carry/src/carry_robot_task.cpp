@@ -212,7 +212,7 @@ int main(int argc, char **argv)
     arm.armSetAbsSteps(release_pos);
 
     // 强烈建议在此处加上延时（例如3~4秒），确保机械臂运动到位后再让底盘起步
-    ros::Duration(4.0).sleep();
+    //ros::Duration(4.0).sleep();
     ROS_INFO("Arm reached initial position. Starting robot movement.");
     arm.close();
 
@@ -282,7 +282,23 @@ int main(int argc, char **argv)
 
     // 返回出发点
     Move2goal(ac, 0.05, 0.05, 0);
-    system("roslaunch carry arm_reset.launch");
+    ROS_INFO("Starting arm coordinate reset process to (0, 0, 0)...");
+    if (arm.init(portname, 115200)) // 重新打开之前关闭的串口
+    {
+        //arm.armSetValve(true);  // 打开气阀（确保松开夹爪/气吸）
+        //arm.armSetPump(false);  // 关闭气泵
+
+        int reset_coords[3] = {0, 0, 0};
+        arm.armSetAbsSteps(reset_coords); // 驱动机械臂移动到绝对坐标 (0, 0, 0)
+        
+        //ros::Duration(3.0).sleep();       // 延时等待机械臂移动到位
+        arm.close();                      // 安全关闭串口
+        ROS_INFO("Arm coordinate reset to (0,0,0) completed.");
+    }
+    else
+    {
+        ROS_ERROR("Failed to re-initialize arm for coordinate reset!");
+    }
     Move_safe(g_pub, 0.0, -0.1, 30);
     Move_safe(g_pub, -0.1, 0.0, 30);
     if (ac.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
