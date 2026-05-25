@@ -126,10 +126,13 @@ void callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr &msg)
                 if (x < -8) //
                 {
                     Move_safe(pub, 0, -0.05, 2);
+                    ROS_INFO("left");
                 }
                 else if (x > 8)
                 {
                     Move_safe(pub, 0, 0.05, 2);
+                    ROS_INFO("right");
+
                 }
                 else // 左右正常
                 {
@@ -137,14 +140,17 @@ void callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr &msg)
                     if (z > 150)
                     {
                         Move_safe(pub, 0.1, 0, 3);
+                        ROS_INFO("too far");
                     }
                     else if (z > 70)
                     {
                         Move_safe(pub, 0.05, 0, 2);
+                        ROS_INFO("far");
                     }
                     else if (z < 63)
                     {
                         Move_safe(pub, -0.05, 0, 2);
+                        ROS_INFO("close");
                     }
                     else // 远近正常
                     {

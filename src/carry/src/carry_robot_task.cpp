@@ -144,32 +144,7 @@ void Move2goal(MoveBaseClient &ac, double x, double y, double yaw)
         // 可选：添加重试逻辑
     }
 }
-/*
- * @brief 到达目标后，移动指定距离。完成任务后再移动指定距离。可以避免碰撞。
- * @linear_x x方向速度，向前为正
- * @linear_y y方向速度，向左为正
- * @distance 移动距离
- */
 
-// void Move_safe(ros::Publisher& pub, double linear_x, double linear_y, double distance)
-// {
-//     geometry_msgs::Twist vel_msg;
-//         vel_msg.linear.x = linear_x;
-//         vel_msg.linear.y = linear_y;
-//         int count = 0;
-//         ros::Rate loop_rate(10);
-//         while (ros::ok() && count < distance)
-//         {
-//             pub.publish(vel_msg);
-//             ros::spinOnce();
-//             loop_rate.sleep();
-//             count++;
-//         }
-//         // 停下
-//         vel_msg.linear.x = 0.0;
-//         vel_msg.linear.y = 0.0;
-//         pub.publish(vel_msg);
-// }
 
 int tagid = 0;
 
@@ -233,7 +208,7 @@ int main(int argc, char **argv)
     }
 
     ROS_INFO("Robot startup: Moving arm to initial position...");
-    int release_pos[3] = {0, 0, -6000};
+    int release_pos[3] = {0, 6000, 0};
     arm.armSetAbsSteps(release_pos);
 
     // 强烈建议在此处加上延时（例如3~4秒），确保机械臂运动到位后再让底盘起步

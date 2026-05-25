@@ -99,7 +99,6 @@ void callback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr &msg)
         ros::shutdown(); // 关闭当前节点
     }
 }
-}
 
 int main(int argc, char **argv)
 {

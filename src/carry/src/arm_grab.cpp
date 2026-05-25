@@ -6,10 +6,10 @@ Mini2_ARM arm;
 void try_grab()
 {
     ROS_INFO("Move to grab pose!!!!!");
-    int init_pos[3] = {0, 6000, 0};
-    arm.armSetAbsSteps(init_pos);
+    // int init_pos[3] = {0, 6000, 0};
+    // arm.armSetAbsSteps(init_pos);
 
-    ros::Duration(1.0).sleep(); // 等待机械臂运动到位
+    // ros::Duration(3.0).sleep(); // 等待机械臂运动到位
     arm.armSetPump(true);       // 开气泵
 
     int init_1_pos[3] = {0, 3650, -3500}; // 移动到抓取点
