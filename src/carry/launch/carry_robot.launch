@@ -11,9 +11,9 @@
         <param name="tag1_put_y" value="2.21"/>
 
         <!-- 定义放置tag2的x坐标 0.80,0.87 0.85--> 
-        <param name="tag2_put_x" value="0.86"/>
+        <param name="tag2_put_x" value="0.97"/>
         <!-- 定义放置tag2的y坐标 y=2.25,2.12,2.21-->
-        <param name="tag2_put_y" value="2.25"/>
+        <param name="tag2_put_y" value="2.19"/>
 
         <!-- 定义左侧放置偏移量 -->
         <param name="offset_left" value="0.01"/>

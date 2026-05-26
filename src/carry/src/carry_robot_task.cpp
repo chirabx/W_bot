@@ -31,6 +31,9 @@ ros::Publisher g_pub;
  * @brief 移动到指定位置
  */
 
+// 1. 前置声明 Move2goal 函数，因为 performRetryLogic 中需要调用它
+void Move2goal(MoveBaseClient &ac, double x, double y, double yaw);
+
 void Move_safe(ros::Publisher &pub, double linear_x, double linear_y, double distance)
 {
     geometry_msgs::Twist vel_msg;
@@ -51,6 +54,16 @@ void Move_safe(ros::Publisher &pub, double linear_x, double linear_y, double dis
     pub.publish(vel_msg);
 }
 
+// 2. 添加你提供的重试逻辑函数，注意这里使用的是大写的 Move_safe 和全局的 g_pub
+void performRetryLogic(MoveBaseClient &ac, ros::Publisher &pub, double x, double y, double yaw)
+{
+    ROS_INFO("Executing backward retry logic...");
+    Move_safe(pub, -0.05, 0.0, 30); // 向后退 30 步
+
+    ROS_INFO("Retrying to move to target point (%.3f, %.3f, %.3f)", x, y, yaw);
+    Move2goal(ac, x, y, yaw); // 重新发送目标点
+}
+
 void Move2goal(MoveBaseClient &ac, double x, double y, double yaw)
 {
     tf2::Quaternion quaternion;
@@ -67,7 +80,10 @@ void Move2goal(MoveBaseClient &ac, double x, double y, double yaw)
     ROS_INFO("MoveBase Send Goal! Target: (%.3f, %.3f, %.3f)", x, y, yaw);
     ac.waitForResult();
 
-    if (ac.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+    // 获取导航状态
+    actionlib::SimpleClientGoalState state = ac.getState();
+
+    if (state == actionlib::SimpleClientGoalState::SUCCEEDED)
     {
         ROS_INFO("Navigation succeeded! Starting position fine-tuning...");
 
@@ -138,13 +154,53 @@ void Move2goal(MoveBaseClient &ac, double x, double y, double yaw)
         }
         // ========== 微调结束 ==========
     }
+    // ========== 失败重试逻辑 ==========
+    else if (state == actionlib::SimpleClientGoalState::ABORTED)
+    {
+        ROS_WARN("Navigation aborted - possibly due to obstacles or path planning failure");
+        // 调用重试逻辑，传入全局定义的发布者 g_pub
+        performRetryLogic(ac, g_pub, x, y, yaw);
+    }
     else
     {
-        ROS_WARN("Navigation failed! Retry logic would go here...");
-        // 可选：添加重试逻辑
+        ROS_WARN("Navigation failed with state: %s", state.toString().c_str());
     }
 }
 
+// 仅执行基础导航，不包含微调和重试逻辑
+void Move1goal(MoveBaseClient &ac, double x, double y, double yaw)
+{
+    // 1. 根据传入的 yaw (弧度) 计算四元数
+    tf2::Quaternion quaternion;
+    quaternion.setRPY(0, 0, yaw);
+
+    // 2. 构建 move_base 的目标点数据结构
+    move_base_msgs::MoveBaseGoal goal;
+    goal.target_pose.pose.position.x = x;
+    goal.target_pose.pose.position.y = y;
+    goal.target_pose.pose.orientation.z = quaternion.z();
+    goal.target_pose.pose.orientation.w = quaternion.w();
+    goal.target_pose.header.frame_id = "map";
+    goal.target_pose.header.stamp = ros::Time::now();
+
+    // 3. 发送目标点
+    ac.sendGoal(goal);
+    ROS_INFO("move1goal: Sending base goal! Target: (%.3f, %.3f, %.3f)", x, y, yaw);
+
+    // 4. 阻塞等待导航完成
+    ac.waitForResult();
+
+    // 5. 打印最终的导航状态日志
+    actionlib::SimpleClientGoalState state = ac.getState();
+    if (state == actionlib::SimpleClientGoalState::SUCCEEDED)
+    {
+        ROS_INFO("move1goal: Navigation reached target point successfully.");
+    }
+    else
+    {
+        ROS_WARN("move1goal: Navigation finished with state: %s", state.toString().c_str());
+    }
+}
 
 int tagid = 0;
 
@@ -217,6 +273,7 @@ int main(int argc, char **argv)
     arm.close();
 
     // reset
+    Move_safe(g_pub, 0.1, 0.0, 10);
     Move_safe(g_pub, 0.0, 0.3, 25);
     Move_safe(g_pub, 0.3, 0.0, 60);
     // 导航至桌子左侧前
@@ -235,17 +292,21 @@ int main(int argc, char **argv)
     {
         ROS_INFO("Grab the tag1");
         Move_safe(g_pub, -0.1, 0.0, 30); // 后退30cm
+        Move1goal(ac, 2.20, 1.5, 1.57);//导航至左边位置
 
+        ros::Duration(1.0).sleep();
         // 导航至一号物块放置区并放置
         Move2goal(ac, tag1_put_x, tag1_put_y, 1.57); // 1.57
         // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
         system("roslaunch carry arm_put.launch");
         // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
         // 导航至二号物块前并抓取
-        Move2goal(ac, 2.12, 0.12, 0); // 2.12,0.13
+        Move2goal(ac, 2.20, 0.12, 0); // 2.12,0.13
         ROS_INFO("Grab the tag2");
         system("roslaunch carry print_id.launch");
         Move_safe(g_pub, -0.1, 0.0, 30); // 后退30cm
+        Move1goal(ac, 2.20, 1.5, 1.57);//导航至左边位置
+        ros::Duration(1.0).sleep();
         // Move_safe(pub, 0, 0.1, 20); // 左移20cm
 
         // 导航至二号物块放置区并放置
@@ -259,7 +320,9 @@ int main(int argc, char **argv)
     {
         ROS_INFO("Grab the tag2");
         Move_safe(g_pub, -0.1, 0.0, 30); // 后退30cm
+        Move1goal(ac, 2.20, 1.5, 1.57);//导航至左边位置
 
+        ros::Duration(1.0).sleep();
         // 导航至二号物块放置区并放置
         Move2goal(ac, tag2_put_x, tag2_put_y, 1.57);
         // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
@@ -271,6 +334,8 @@ int main(int argc, char **argv)
         ROS_INFO("Grab the tag1");
         system("roslaunch carry print_id.launch");
         Move_safe(g_pub, -0.1, 0.0, 30); // 后退30cm
+        Move1goal(ac, 2.20, 1.5, 1.57);//导航至左边位置
+        ros::Duration(1.0).sleep();
         // Move_safe(pub, 0, 0.1, 20); // 左移20cm
 
         // 导航至一号物块放置区并放置
@@ -281,7 +346,7 @@ int main(int argc, char **argv)
     }
 
     // 返回出发点
-    Move2goal(ac, 0.05, 0.05, 0);
+    Move1goal(ac, 0.05, 0.05, 0);
     ROS_INFO("Starting arm coordinate reset process to (0, 0, 0)...");
     if (arm.init(portname, 115200)) // 重新打开之前关闭的串口
     {
