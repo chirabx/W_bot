@@ -34,6 +34,25 @@ ros::Publisher g_pub;
 // 1. 前置声明 Move2goal 函数，因为 performRetryLogic 中需要调用它
 void Move2goal(MoveBaseClient &ac, double x, double y, double yaw);
 
+// 旋转安全函数：控制小车原地旋转
+void Turn_safe_1(ros::Publisher &pub, double angular_z, double distance)
+{
+    geometry_msgs::Twist vel_msg;
+    vel_msg.angular.z = angular_z;
+    int count = 0;
+    ros::Rate loop_rate(10);
+    while (ros::ok() && count < distance)
+    {
+        pub.publish(vel_msg);
+        ros::spinOnce();
+        loop_rate.sleep();
+        count++;
+    }
+    // 停下
+    vel_msg.angular.z = 0.0;
+    pub.publish(vel_msg);
+}
+
 void Move_safe(ros::Publisher &pub, double linear_x, double linear_y, double distance)
 {
     geometry_msgs::Twist vel_msg;
@@ -59,6 +78,12 @@ void performRetryLogic(MoveBaseClient &ac, ros::Publisher &pub, double x, double
 {
     ROS_INFO("Executing backward retry logic...");
     Move_safe(pub, -0.05, 0.0, 30); // 向后退 30 步
+
+    ROS_INFO("Rotating to clear obstacles...");
+    // 执行左右摇摆来撞开障碍物 (假设 10hz 下)
+    Turn_safe_1(pub, 1.0, 10);   // 以 1.0 rad/s 的速度向左旋转 10 步
+    Turn_safe_1(pub, -1.0, 20);  // 以 1.0 rad/s 的速度向右旋转 20 步 (撞开障碍物)
+    Turn_safe_1(pub, 1.0, 10);   // 向左旋转 10 步回正朝向
 
     ROS_INFO("Retrying to move to target point (%.3f, %.3f, %.3f)", x, y, yaw);
     Move2goal(ac, x, y, yaw); // 重新发送目标点
@@ -330,7 +355,7 @@ int main(int argc, char **argv)
         // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
 
         // 导航至一号物块前并抓取
-        Move2goal(ac, 2.12, 0.10, 0); // y=0.13
+        Move2goal(ac, 2.12, 0.08, 0); // y=0.13,0.10
         ROS_INFO("Grab the tag1");
         system("roslaunch carry print_id.launch");
         Move_safe(g_pub, -0.1, 0.0, 30); // 后退30cm
@@ -346,8 +371,9 @@ int main(int argc, char **argv)
         // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
     }
 
+
     // 返回出发点
-    Move1goal(ac, 0.05, 0.05, 0);
+    Move2goal(ac, 0.05, 0.05, 0);
     ROS_INFO("Starting arm coordinate reset process to (0, 0, 0)...");
     if (arm.init(portname, 115200)) // 重新打开之前关闭的串口
     {

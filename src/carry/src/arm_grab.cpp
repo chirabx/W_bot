@@ -12,6 +12,8 @@ void try_grab()
     // ros::Duration(3.0).sleep(); // 等待机械臂运动到位
     arm.armSetPump(true);       // 开气泵
 
+    ros::Duration(1.0).sleep();
+    
     int init_1_pos[3] = {0, 3650, -3500}; // 移动到抓取点
     arm.armSetAbsSteps(init_1_pos);
 
