@@ -292,9 +292,9 @@ int main(int argc, char **argv)
     {
         ROS_INFO("Grab the tag1");
         Move_safe(g_pub, -0.1, 0.0, 30); // 后退30cm
-        Move1goal(ac, 2.20, 1.5, 1.57);//导航至左边位置
+        //Move1goal(ac, 2.20, 1.5, 1.57);//导航至左边位置
+        //ros::Duration(1.0).sleep();
 
-        ros::Duration(1.0).sleep();
         // 导航至一号物块放置区并放置
         Move2goal(ac, tag1_put_x, tag1_put_y, 1.57); // 1.57
         // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
@@ -334,8 +334,9 @@ int main(int argc, char **argv)
         ROS_INFO("Grab the tag1");
         system("roslaunch carry print_id.launch");
         Move_safe(g_pub, -0.1, 0.0, 30); // 后退30cm
-        Move1goal(ac, 2.20, 1.5, 1.57);//导航至左边位置
-        ros::Duration(1.0).sleep();
+        
+        //Move1goal(ac, 2.20, 1.5, 1.57);//导航至左边位置
+        //ros::Duration(1.0).sleep();
         // Move_safe(pub, 0, 0.1, 20); // 左移20cm
 
         // 导航至一号物块放置区并放置
