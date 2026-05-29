@@ -9,6 +9,8 @@
 #include <nav_msgs/Path.h>
 #include <std_msgs/Int32.h>
 #include <geometry_msgs/Twist.h>
+// 【新增】激光雷达消息头文件
+#include <sensor_msgs/LaserScan.h>
 
 #include "../include/mini2_arm/mini2_arm.h"
 
@@ -23,10 +25,83 @@ using namespace std;
 
 typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
 
+// ========== 【新增】激光雷达相关的全局变量 ==========
+double front_wall_distance = 0.0;
+bool scan_received = false;
 // 全局 TF 监听器指针
 std::shared_ptr<tf2_ros::Buffer> tfBuffer;
 std::shared_ptr<tf2_ros::TransformListener> tfListener;
 ros::Publisher g_pub;
+// ========== 【新增】订阅激光雷达的回调函数 ==========
+void scanCallback(const sensor_msgs::LaserScan::ConstPtr& msg)
+{
+    // ROS标准中，0弧度代表车头正前方。我们计算0弧度在数组中的索引
+    int center_index = (0.0 - msg->angle_min) / msg->angle_increment;
+    
+    // 取车头正前方左右各几个点求平均值，过滤噪点
+    int window = 5; 
+    double sum = 0;
+    int count = 0;
+    
+    for (int i = center_index - window; i <= center_index + window; i++) {
+        if (i >= 0 && i < msg->ranges.size()) {
+            double r = msg->ranges[i];
+            if (!std::isinf(r) && !std::isnan(r) && r > 0.1) {
+                sum += r;
+                count++;
+            }
+        }
+    }
+    
+    if (count > 0) {
+        front_wall_distance = sum / count;
+        scan_received = true;
+    }
+}
+
+// ========== 【新增】基于激光雷达的末端闭环对齐函数 ==========
+void align_with_wall(ros::Publisher &pub, double target_dist)
+{
+    ROS_INFO(">>> [LiDAR Alignment] Starting LiDAR alignment to target distance: %.2fm", target_dist);
+    ros::Rate rate(10);
+    int timeout = 0;
+    int max_timeout = 80; // 最大允许调整8秒，防止死循环
+
+    while (ros::ok() && timeout < max_timeout)
+    {
+        ros::spinOnce(); 
+        
+        if (!scan_received) {
+            rate.sleep();
+            continue;
+        }
+
+        double error = front_wall_distance - target_dist;
+
+        if (std::abs(error) <= 0.01) {
+            ROS_INFO(">>> [LiDAR Alignment] Success! Current distance: %.3fm", front_wall_distance);
+            break;
+        }
+
+        geometry_msgs::Twist vel;
+        if (error > 0) {
+            vel.linear.x = 0.04;  // 前进
+        } else {
+            vel.linear.x = -0.04; // 后退
+        }
+        
+        pub.publish(vel);
+        
+        rate.sleep();
+        timeout++;
+    }
+
+    // 刹车停止
+    geometry_msgs::Twist stop_vel;
+    stop_vel.linear.x = 0.0;
+    pub.publish(stop_vel);
+    ROS_INFO(">>> [LiDAR Alignment] Completed.");
+}
 /*
  * @brief 移动到指定位置
  */
@@ -255,6 +330,8 @@ int main(int argc, char **argv)
 
     g_pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 10);
     ros::Subscriber tag_sub = nh.subscribe("/tag_detections", 1000, tagDetectionsCallback);
+    // 【新增】订阅雷达数据，如果话题叫 /scan_filtered 可以修改这里
+    ros::Subscriber scan_sub = nh.subscribe("/scan", 10, scanCallback);
     MoveBaseClient ac("move_base", true);
     ac.waitForServer();
 
@@ -321,6 +398,8 @@ int main(int argc, char **argv)
         //ros::Duration(1.0).sleep();
         Move2goal(ac, tag1_put_x, tag1_put_y, 1.57); // 1.57
         // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
+        // 【新增】雷达辅助微调（目标距离 0.55m，请根据实际情况修改）
+        align_with_wall(g_pub, 0.55);
         system("roslaunch carry arm_put.launch");
         // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
         // 导航至二号物块前并抓取
@@ -335,6 +414,8 @@ int main(int argc, char **argv)
         // 导航至二号物块放置区并放置
         Move2goal(ac, tag2_put_x, tag2_put_y, 1.57);
         // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
+        // 【新增】雷达辅助微调（目标距离 0.55m，请根据实际情况修改）
+        align_with_wall(g_pub, 0.55);
         system("roslaunch carry arm_put.launch");
         // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
     }
@@ -349,6 +430,8 @@ int main(int argc, char **argv)
         // 导航至二号物块放置区并放置
         Move2goal(ac, tag2_put_x, tag2_put_y, 1.57);
         // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
+        // 【新增】雷达辅助微调（目标距离 0.55m，请根据实际情况修改）
+        align_with_wall(g_pub, 0.55);
         system("roslaunch carry arm_put.launch");
         // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
 
@@ -365,6 +448,8 @@ int main(int argc, char **argv)
         // 导航至一号物块放置区并放置
         Move2goal(ac, tag1_put_x, tag1_put_y, 1.57);
         // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
+        // 【新增】雷达辅助微调（目标距离 0.55m，请根据实际情况修改）
+        align_with_wall(g_pub, 0.55);
         system("roslaunch carry arm_put.launch");
         // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
     }
