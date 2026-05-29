@@ -319,8 +319,6 @@ int main(int argc, char **argv)
         Move_safe(g_pub, -0.1, 0.0, 30); // 后退30cm
         //Move1goal(ac, 2.20, 1.5, 1.57);//导航至左边位置
         //ros::Duration(1.0).sleep();
-
-        // 导航至一号物块放置区并放置
         Move2goal(ac, tag1_put_x, tag1_put_y, 1.57); // 1.57
         // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
         system("roslaunch carry arm_put.launch");
@@ -355,7 +353,7 @@ int main(int argc, char **argv)
         // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
 
         // 导航至一号物块前并抓取
-        Move2goal(ac, 2.12, 0.08, 0); // y=0.13,0.10
+        Move2goal(ac, 2.12, 0.07, 0); // y=0.13,0.10
         ROS_INFO("Grab the tag1");
         system("roslaunch carry print_id.launch");
         Move_safe(g_pub, -0.1, 0.0, 30); // 后退30cm
@@ -373,7 +371,7 @@ int main(int argc, char **argv)
 
 
     // 返回出发点
-    Move2goal(ac, 0.05, 0.05, 0);
+    Move2goal(ac, 0.10, 0.10, 0); //x=0.05 y=0.05
     ROS_INFO("Starting arm coordinate reset process to (0, 0, 0)...");
     if (arm.init(portname, 115200)) // 重新打开之前关闭的串口
     {

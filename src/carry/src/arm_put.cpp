@@ -8,7 +8,7 @@ void try_loose()
 {
     ROS_INFO("Release Woods!!!!!");
 
-    int release_pos[3] = {0, 0, -6000};
+    int release_pos[3] = {0, 0, -5750};
     arm.armSetAbsSteps(release_pos);
     ros::Duration(3.0).sleep();
     arm.armSetValve(true);
