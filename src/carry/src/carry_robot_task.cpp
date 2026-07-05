@@ -102,6 +102,65 @@ void align_with_wall(ros::Publisher &pub, double target_dist)
     pub.publish(stop_vel);
     ROS_INFO(">>> [LiDAR Alignment] Completed.");
 }
+// ========== 【新增】基于TF的闭环左右横移对齐函数 (左右Y轴) ==========
+void align_y_with_tf(ros::Publisher &pub, double target_x, double target_y)
+{
+    ROS_INFO(">>> [TF Alignment] Starting lateral (Left/Right) alignment...");
+    ros::Rate rate(10);
+    int timeout = 0;
+    int max_timeout = 60; // 最大允许调整6秒
+
+    while (ros::ok() && timeout < max_timeout)
+    {
+        try
+        {
+            // 获取当前真实坐标
+            geometry_msgs::TransformStamped current_tf = tfBuffer->lookupTransform("map", "base_link", ros::Time(0), ros::Duration(0.1));
+            double cur_x = current_tf.transform.translation.x;
+            double cur_y = current_tf.transform.translation.y;
+            double cur_yaw = tf2::getYaw(current_tf.transform.rotation);
+
+            // 计算全局偏差
+            double dx = target_x - cur_x;
+            double dy = target_y - cur_y;
+
+            // 将全局偏差转换到小车局部坐标系，重点提取左右方向的偏差 (local_dy)
+            double local_dy = -dx * sin(cur_yaw) + dy * cos(cur_yaw);
+
+            // 如果左右误差小于 1cm (0.01m)，说明对齐成功！
+            if (std::abs(local_dy) <= 0.01)
+            {
+                ROS_INFO(">>> [TF Alignment] Success! Lateral error within 1cm.");
+                break;
+            }
+
+            // 速度控制
+            geometry_msgs::Twist vel;
+            // 麦轮横移摩擦力大，速度稍微给大一点点，防止卡死不走
+            if (local_dy > 0) {
+                vel.linear.y = 0.06; // 向左平移
+            } else {
+                vel.linear.y = -0.06; // 向右平移
+            }
+            
+            pub.publish(vel);
+        }
+        catch (tf2::TransformException &ex)
+        {
+            ROS_WARN("TF Error during Y-axis adjustment: %s", ex.what());
+        }
+
+        rate.sleep();
+        timeout++;
+    }
+
+    // 刹车停止
+    geometry_msgs::Twist stop_vel;
+    stop_vel.linear.x = 0.0;
+    stop_vel.linear.y = 0.0;
+    pub.publish(stop_vel);
+    ROS_INFO(">>> [TF Alignment] Completed.");
+}
 /*
  * @brief 移动到指定位置
  */
@@ -228,13 +287,62 @@ void Move2goal(MoveBaseClient &ac, double x, double y, double yaw)
                     }
 
                     // 左右方向微调
+                    // 【已修改】左右方向微调 (改为基于 TF 的闭环连续微调)
+                    // ==========================================================
                     if (std::abs(local_dy) > 0.01)
                     {
-                        double adjust_vy = (local_dy > 0) ? 0.05 : -0.05;
-                        int step_count = std::min(50, (int)(std::abs(local_dy) / 0.05 * 10));
-                        ROS_INFO("Lateral adjustment: %.3f m, steps: %d", local_dy, step_count);
-                        Move_safe(g_pub, 0.0, adjust_vy, step_count);
+                        ROS_INFO(">>> Starting closed-loop TF lateral adjustment...");
+                        ros::Rate rate(10);
+                        int timeout = 0;
+                        int max_timeout = 60; // 最大允许调整6秒，防止卡死死循环
+
+                        while (ros::ok() && timeout < max_timeout)
+                        {
+                            try
+                            {
+                                // 不断获取当前最新位姿
+                                geometry_msgs::TransformStamped current_tf = tfBuffer->lookupTransform("map", "base_link", ros::Time(0), ros::Duration(0.1));
+                                double cur_x = current_tf.transform.translation.x;
+                                double cur_y = current_tf.transform.translation.y;
+                                double cur_yaw = tf2::getYaw(current_tf.transform.rotation);
+
+                                // 重新计算实时偏差
+                                double dx = x - cur_x;
+                                double dy = y - cur_y;
+                                double current_local_dy = -dx * sin(cur_yaw) + dy * cos(cur_yaw);
+
+                                // 判断左右误差是否已经小于 1cm
+                                if (std::abs(current_local_dy) <= 0.01)
+                                {
+                                    ROS_INFO(">>> Lateral TF adjustment success! Error within 1cm.");
+                                    break;
+                                }
+
+                                // 速度控制 (速度稍微给 0.06，克服麦轮横移较大的摩擦力)
+                                geometry_msgs::Twist vel;
+                                if (current_local_dy > 0) {
+                                    vel.linear.y = 0.06; // 向左平移
+                                } else {
+                                    vel.linear.y = -0.06; // 向右平移
+                                }
+                                g_pub.publish(vel);
+                            }
+                            catch (tf2::TransformException &ex)
+                            {
+                                ROS_WARN("TF Error during lateral adjustment: %s", ex.what());
+                            }
+
+                            rate.sleep();
+                            timeout++;
+                        }
+
+                        // 刹车停止
+                        geometry_msgs::Twist stop_vel;
+                        stop_vel.linear.x = 0.0;
+                        stop_vel.linear.y = 0.0;
+                        g_pub.publish(stop_vel);
                     }
+                    // ==========================================================
 
                     ROS_INFO("Fine-tuning completed!");
                 }
@@ -376,10 +484,10 @@ int main(int argc, char **argv)
 
     // reset
     Move_safe(g_pub, 0.1, 0.0, 10);
-    Move_safe(g_pub, 0.0, 0.3, 25);
+    Move_safe(g_pub, 0.0, 0.3, 35);
     Move_safe(g_pub, 0.3, 0.0, 60);
     // 导航至桌子左侧前
-    Move2goal(ac, 2.12, 0.05, -0.04); // jioa du=0 y=0.11 0.09
+    Move2goal(ac, 2.16, 0.11, -0.04); // jiao du=0 y=0.11 0.09  0.05 0.08 x=2.12
     system("roslaunch carry print_id.launch");
 
     ROS_INFO("%d", tagid);
@@ -398,12 +506,14 @@ int main(int argc, char **argv)
         //ros::Duration(1.0).sleep();
         Move2goal(ac, tag1_put_x, tag1_put_y, 1.57); // 1.57
         // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
+        // 【新增】1. TF辅助左右横移微调 (目标点为tag1)
+        align_y_with_tf(g_pub, tag1_put_x, tag1_put_y);
         // 【新增】雷达辅助微调（目标距离 0.55m，请根据实际情况修改）
         align_with_wall(g_pub, 0.55);
         system("roslaunch carry arm_put.launch");
         // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
         // 导航至二号物块前并抓取
-        Move2goal(ac, 2.20, 0.12, 0); // 2.12,0.13
+        Move2goal(ac, 2.20, 0.12, 0); // 2.12,0.13  2.20 0.12
         ROS_INFO("Grab the tag2");
         system("roslaunch carry print_id.launch");
         Move_safe(g_pub, -0.1, 0.0, 30); // 后退30cm
@@ -414,6 +524,8 @@ int main(int argc, char **argv)
         // 导航至二号物块放置区并放置
         Move2goal(ac, tag2_put_x, tag2_put_y, 1.57);
         // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
+        // 【新增】1. TF辅助左右横移微调 (目标点为tag2)
+        align_y_with_tf(g_pub, tag2_put_x, tag2_put_y);
         // 【新增】雷达辅助微调（目标距离 0.55m，请根据实际情况修改）
         align_with_wall(g_pub, 0.55);
         system("roslaunch carry arm_put.launch");
@@ -424,19 +536,21 @@ int main(int argc, char **argv)
     {
         ROS_INFO("Grab the tag2");
         Move_safe(g_pub, -0.1, 0.0, 30); // 后退30cm
-        Move1goal(ac, 2.20, 1.5, 1.57);//导航至左边位置
+        Move1goal(ac, 2.20, 1.5, 1.57);//导航至左边位置  
 
         ros::Duration(1.0).sleep();
         // 导航至二号物块放置区并放置
         Move2goal(ac, tag2_put_x, tag2_put_y, 1.57);
         // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
+        // 【新增】1. TF辅助左右横移微调 (目标点为tag2)
+        align_y_with_tf(g_pub, tag2_put_x, tag2_put_y);
         // 【新增】雷达辅助微调（目标距离 0.55m，请根据实际情况修改）
         align_with_wall(g_pub, 0.55);
         system("roslaunch carry arm_put.launch");
         // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
 
         // 导航至一号物块前并抓取
-        Move2goal(ac, 2.12, 0.07, 0); // y=0.13,0.10
+        Move2goal(ac, 2.16, 0.11, 0); // y=0.13,0.10    2.12 0.07 0.09
         ROS_INFO("Grab the tag1");
         system("roslaunch carry print_id.launch");
         Move_safe(g_pub, -0.1, 0.0, 30); // 后退30cm
@@ -448,8 +562,10 @@ int main(int argc, char **argv)
         // 导航至一号物块放置区并放置
         Move2goal(ac, tag1_put_x, tag1_put_y, 1.57);
         // Move_safe(pub, 0.0, 0.1, 10); // 左移10cm
+        // 【新增】1. TF辅助左右横移微调 (目标点为tag1)
+        align_y_with_tf(g_pub, tag1_put_x, tag1_put_y);
         // 【新增】雷达辅助微调（目标距离 0.55m，请根据实际情况修改）
-        align_with_wall(g_pub, 0.55);
+        align_with_wall(g_pub, 0.55); 
         system("roslaunch carry arm_put.launch");
         // Move_safe(pub, 0.0, -0.1, 30); // 右移30cm
     }
@@ -474,8 +590,8 @@ int main(int argc, char **argv)
     {
         ROS_ERROR("Failed to re-initialize arm for coordinate reset!");
     }
-    Move_safe(g_pub, 0.0, -0.1, 30);
-    Move_safe(g_pub, -0.1, 0.0, 30);
+    Move_safe(g_pub, 0.0, -0.1, 60);
+    Move_safe(g_pub, -0.1, 0.0, 40);//30
     if (ac.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
     {
         ROS_INFO("Back !!!!");

@@ -25,7 +25,7 @@ void try_grab()
     ROS_INFO("Move to end pos!!!!!!");
     int end_pos[3] = {0, 6000, 0};
     arm.armSetAbsSteps(end_pos); // 抬起机械臂
-    ros::Duration(2.0).sleep();
+    ros::Duration(3.0).sleep();
 }
 
 int main(int argc, char **argv)
